@@ -1,8 +1,226 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
   "contentVersion": "1.0.0.0",
-  "parameters": {},
-  "variables": {},
-  "resources": [],
-  "outputs": {}
+  "parameters": {
+    "nameOfVM": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of VM."
+      },
+      "defaultValue": "Web01"
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin username"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password"
+      }
+    }
+    /*"vpnClientAddressPoolPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The IP address range from which VPN clients will receive an IP address when connected. Range specified must not overlap with on-premise network."
+      },
+      "defaultValue": "10.10.8.0/24"
+    } */
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "newStorageAccount": "[concat(tolower(parameters('nameOfVM')),'sa01')]",
+    "storageAccountType": "Standard_LRS",
+    "vnetName": "DevTestVnet",
+    "vnetAddressPrefix": "10.0.0.0/23",
+    "gatewaySubnetPrefix": "10.0.1.0/24",
+    "gatewayPublicIPName": "[concat(parameters('nameOfVM'),'GatewayPIP01')]",
+    //"gatewayName": "[concat(parameters('environmentPrefix'),'Gateway')]",
+    //"gatewaySku": "Basic",
+    //"gatewaySubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', variables('vnetName'),'GatewaySubnet')]",
+    "appSubnetName": "appSubnet",
+    "appSubnetPrefix": "10.0.0.0/24",
+    "appSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', variables('vnetName'),variables('appSubnetName'))]",
+    "publicIPAddressName": "[concat(variables('vmName'),'_PIP01')]",
+    "nicName": "[concat(variables('vmName'),'_NIC01')]",
+    "nsgName": "WebTier",
+    "vmName": "[parameters('nameOfVM')]",
+    "vmSize": "Standard_B2s",
+    "diskSize": "1024",
+    "imagePublisher": "MicrosoftWindowsServer",
+    "imageOffer": "WindowsServer",
+    "imageSKU": "2012-R2-Datacenter",
+    "vmExtensionName": "dscExtension",
+    "modulesUrl": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/devtest-p2s-iis/DevTestWebsite.ps1.zip",
+    "configurationFunction": "DevTestWebsite.ps1\\DevTestWebsite"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('newStorageAccount')]",
+      "apiVersion": "2015-06-15",
+      "location": "[variables('location')]",
+      "properties": {
+        "accountType": "[variables('storageAccountType')]"
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('publicIPAddressName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('vnetName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnetAddressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "GatewaySubnet",
+            "properties": {
+              "addressPrefix": "[variables('gatewaySubnetPrefix')]"
+            }
+          },
+          {
+            "name": "[variables('appSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('appSubnetPrefix')]"
+            }
+          }
+        ]
+      }
+    },
+
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[variables('nsgName')]",
+      "location": "[variables('location')]"
+    },
+
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('nicName')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[variables('vnetName')]",
+        "[variables('nsgName')]",
+        "[variables('publicIPAddressName')]"
+      ],
+      "properties": {
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups','WebTier')]"
+        },
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId ('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('appSubnetRef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2017-03-30",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[variables('vmName')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Storage/storageAccounts/', variables('newStorageAccount'))]",
+        "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('imagePublisher')]",
+            "offer": "[variables('imageOffer')]",
+            "sku": "[variables('imageSKU')]",
+            "version": "latest"
+          },
+          "dataDisks": [
+            {
+              "name": "[concat(variables('vmName'),'_dataDisk01')]",
+              "diskSizeGB": "[variables('diskSize')]",
+              "lun": 0,
+              "managedDisk": {
+                "storageAccountType": "[variables('storageAccountType')]"
+                //"id": "[parameters('virtualMachines_DevTestVM02_id_1')]"
+              },
+              "createOption": "Empty"
+            }
+
+          ],
+          "osDisk": {
+            "name": "[concat(variables('vmName'),'_OSDisk')]",
+            "managedDisk": {
+              "storageAccountType": "[variables('storageAccountType')]"
+              //"id": "[parameters('virtualMachines_DevTestVM02_id_1')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(variables('vmName'),'/', variables('vmExtensionName'))]",
+      "apiVersion": "2015-06-15",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Powershell",
+        "type": "DSC",
+        "typeHandlerVersion": "2.19",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "ModulesUrl": "[variables('modulesUrl')]",
+          "ConfigurationFunction": "[variables('configurationFunction')]",
+          "Properties": {
+            "MachineName": "[variables('vmName')]"
+          }
+        },
+        "protectedSettings": null
+      }
+    }
+
+
+  ]
 }
