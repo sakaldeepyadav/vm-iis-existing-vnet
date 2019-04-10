@@ -182,7 +182,7 @@
             "name": "[concat(variables('vmName'),'_OSDisk')]",
             "managedDisk": {
               "storageAccountType": "[variables('storageAccountType')]"
-              //"id": "[parameters('virtualMachines_DevTestVM02_id_1')]"
+              
             },
             "caching": "ReadWrite",
             "createOption": "FromImage"
