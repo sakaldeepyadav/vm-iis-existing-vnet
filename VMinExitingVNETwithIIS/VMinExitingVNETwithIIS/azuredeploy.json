@@ -21,13 +21,7 @@
         "description": "Admin password"
       }
     }
-    /*"vpnClientAddressPoolPrefix": {
-      "type": "string",
-      "metadata": {
-        "description": "The IP address range from which VPN clients will receive an IP address when connected. Range specified must not overlap with on-premise network."
-      },
-      "defaultValue": "10.10.8.0/24"
-    } */
+    
   },
   "variables": {
     "location": "[resourceGroup().location]",
@@ -37,9 +31,7 @@
     "vnetAddressPrefix": "10.0.0.0/23",
     "gatewaySubnetPrefix": "10.0.1.0/24",
     "gatewayPublicIPName": "[concat(parameters('nameOfVM'),'GatewayPIP01')]",
-    //"gatewayName": "[concat(parameters('environmentPrefix'),'Gateway')]",
-    //"gatewaySku": "Basic",
-    //"gatewaySubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', variables('vnetName'),'GatewaySubnet')]",
+    
     "appSubnetName": "appSubnet",
     "appSubnetPrefix": "10.0.0.0/24",
     "appSubnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', variables('vnetName'),variables('appSubnetName'))]",
@@ -172,7 +164,7 @@
               "lun": 0,
               "managedDisk": {
                 "storageAccountType": "[variables('storageAccountType')]"
-                //"id": "[parameters('virtualMachines_DevTestVM02_id_1')]"
+                
               },
               "createOption": "Empty"
             }
