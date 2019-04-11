@@ -21,8 +21,9 @@
         "description": "Admin password"
       }
     }
-    
+
   },
+  //Start of Variables
   "variables": {
     "location": "[resourceGroup().location]",
     "newStorageAccount": "[concat(tolower(parameters('nameOfVM')),'sa01')]",
